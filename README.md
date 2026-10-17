@@ -42,7 +42,6 @@ Card issuance and activation, spending limits, block history, blocking by a cont
 
 ```mermaid
 stateDiagram-v2
-    direction LR
 
     state "Active<br/>ACTIVE" as ACTIVE
     state "Temporarily blocked<br/>TEMP_BLOCKED" as TEMP_BLOCKED
@@ -50,14 +49,14 @@ stateDiagram-v2
     state "Permanently blocked<br/>PERM_BLOCKED" as PERM_BLOCKED
     state "Closed<br/>CLOSED" as CLOSED
 
-    [*] --> ACTIVE : issuance and activation (out of scope)
+    [*] --> ACTIVE : issue and activation (out of scope)
 
     ACTIVE --> TEMP_BLOCKED : T1 · UC-02
     TEMP_BLOCKED --> ACTIVE : T2 · UC-03
 
     ACTIVE --> FRAUD_BLOCKED : T3 · UC-06
     FRAUD_BLOCKED --> ACTIVE : T4 · UC-07 "It was me"
-    FRAUD_BLOCKED --> PERM_BLOCKED : T5 · UC-07 "Not me" → UC-04
+    FRAUD_BLOCKED --> PERM_BLOCKED : T5 · UC-07 "It was not me" → UC-04
 
     ACTIVE --> PERM_BLOCKED : T6 · UC-04
     TEMP_BLOCKED --> PERM_BLOCKED : T7 · UC-04
@@ -68,8 +67,6 @@ stateDiagram-v2
 
 Full transition table, guard conditions and forbidden transitions: [card-lifecycle.md](docs/03-state-model/card-lifecycle.md).
 
----
-
 ## Repository Structure
 
 ```
@@ -79,11 +76,11 @@ card-management-sa-case/
 │   ├── 01-context/
 │   │   ├── vision.md                 ← problem, goals, success metrics
 │   │   ├── glossary.md               ← terms and statuses
-│   │   └── context-diagram.md        ← C4 Level 1: system and its environment
+│   │   └── context-diagram.md        ← C4 Level 1: system and environment
 │   ├── 02-requirements/
 │   │   ├── business-requirements.md
 │   │   ├── nfr.md                    ← performance, security, audit
-│   │   ├── user-stories.md           ← stories with acceptance criteria (Gherkin)
+│   │   ├── user-stories.md           ← stories with acceptance criteria
 │   │   └── use-cases/
 │   │       ├── UC-01-card-list.md
 │   │       ├── UC-02-temp-block.md
@@ -93,7 +90,7 @@ card-management-sa-case/
 │   │       ├── UC-06-fraud-block.md
 │   │       └── UC-07-fraud-confirm.md
 │   ├── 03-state-model/
-│   │   └── card-lifecycle.md         ← state diagram + transition table
+│   │   └── card-lifecycle.md         ← state diagram and transition table
 │   ├── 04-architecture/
 │   │   ├── containers.md             ← C4 Level 2: services
 │   │   └── sequences/
@@ -114,18 +111,6 @@ card-management-sa-case/
     └── queries.sql                   ← analytical queries
 ```
 
----
-
-## Key Design Decisions
-
-| ADR | Decision | Rationale |
-|---|---|---|
-| [ADR-001](docs/05-decisions/ADR-001-block-reason-as-attribute.md) | The block reason (LOST, STOLEN, FRAUD_CONFIRMED) is stored as an attribute, not as separate statuses | Keeps the state model compact; new reasons don't require new transitions |
-| [ADR-002](docs/05-decisions/ADR-002-reissue-as-new-entity.md) | A reissued card is a new entity with its own lifecycle | The old card keeps its history; the link is stored in the reissue request |
-| [ADR-003](docs/05-decisions/ADR-003-reissue-saga-orchestration.md) | Reissue is implemented as an orchestrated saga with compensating actions | Steps span several services and the external processing center; consistency is needed without distributed transactions |
-
----
-
 ## Skills Demonstrated
 
 | Skill | Where to look |
@@ -135,32 +120,13 @@ card-management-sa-case/
 | State modeling | `card-lifecycle.md` |
 | Architecture and integrations (C4, sequence diagrams) | `04-architecture/` |
 | Distributed transactions (saga, compensations, idempotency) | `SD-UC-05-reissue-saga.md`, `ADR-003` |
-| REST API design (OpenAPI 3) | `api/card-api.openapi.yaml` |
+| REST API design (OpenAPI) | `api/card-api.openapi.yaml` |
 | Asynchronous messaging (AsyncAPI, Kafka) | `events/card-events.asyncapi.yaml` |
 | Data modeling and SQL (PostgreSQL) | `db/` |
 | Architecture decision records | `05-decisions/` |
 
 **Notations and tools:** UML (use case, state, sequence), C4, Mermaid, PlantUML, OpenAPI 3.0, AsyncAPI 2.6, Gherkin, PostgreSQL.
 
----
+## About me
 
-## Status
-
-- [x] Scope and use case list
-- [x] Card state model
-- [ ] Vision, glossary, context diagram
-- [ ] Business requirements and NFRs
-- [ ] Use cases UC-01…UC-07
-- [ ] User stories with acceptance criteria
-- [ ] C4 Level 2 and sequence diagrams
-- [ ] ADR-001…003
-- [ ] OpenAPI specification
-- [ ] Event contracts
-- [ ] ERD, DDL and queries
-
----
-
-## Author
-
-**Alina Vlasova**, System Analyst
-Telegram: `@...` · Email: `...` · [CV](...)
+**Alina Vlasova**, System Analyst <br> Telegram: `@drunkenwhal3r` · Email: `avzhorina@gmail.com` · [CV](...)
