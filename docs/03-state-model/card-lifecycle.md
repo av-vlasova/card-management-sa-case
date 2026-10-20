@@ -72,8 +72,8 @@ Every transition is recorded in the card status history with the transition ID, 
 
 | Current status | Request | System behavior | Notes |
 |---|---|---|---|
-| `TEMP_BLOCKED` | Temporary block (UC-02) | Success, status unchanged, no event published | Repeated taps or retries must not produce errors to ensure action idempotency |
-| `ACTIVE` | Unblock (UC-03) | Success, status unchanged, no event published | Repeated taps or retries must not produce errors to ensure action idempotency |
+| `TEMP_BLOCKED` | Temporary block (UC-02) | Success, status unchanged, no event published | The action is idempotent: repeated taps or retries must not produce errors. |
+| `ACTIVE` | Unblock (UC-03) | Success, status unchanged, no event published | The action is idempotent: repeated taps or retries must not produce errors. |
 | `FRAUD_BLOCKED` | Temporary block (UC-02) | Rejected: card is already blocked | Anti-fraud block is stronger and must not be replaced by a reversible one |
 | `FRAUD_BLOCKED` | Unblock (UC-03) | Rejected, customer is redirected to UC-07 | Only the customer's response to the suspicious transaction can lift an anti-fraud block |
 | `TEMP_BLOCKED` | Anti-fraud event (UC-06) | Ignored, logged | No transactions are possible on a blocked card |
