@@ -68,7 +68,6 @@ Stored in the `block_reason` attribute, separately from the status.
 
 | Abbreviation | Meaning |
 |---|---|
-| ADR | Architecture Decision Record |
 | API | Application Programming Interface |
 | C4 | Context, Containers, Components, Code: a model for architecture diagrams |
 | ERD | Entity-Relationship Diagram |

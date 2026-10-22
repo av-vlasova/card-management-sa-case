@@ -146,4 +146,3 @@ Detailed in [nfr.md](../nfr.md). Key ones for this use case:
 | API | `POST /cards/{cardId}/block`, `GET /operations/{operationId}` in [card-api.openapi.yaml](../../../api/card-api.openapi.yaml) |
 | Events | `CardBlocked` in [card-events.asyncapi.yaml](../../../events/card-events.asyncapi.yaml) |
 | Sequence diagram | [SD-UC-02-temp-block.md](../../04-architecture/sequences/SD-UC-02-temp-block.md) |
-| Decisions | [ADR-001](../../05-decisions/ADR-001-block-reason-as-attribute.md) |

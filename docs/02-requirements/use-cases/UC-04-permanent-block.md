@@ -74,4 +74,3 @@ The customer permanently blocks a card that has been lost or stolen. The block i
 | State transitions | T5, T6, T7 in [card-lifecycle.md](../../03-state-model/card-lifecycle.md) |
 | API | `POST /cards/{cardId}/permanent-block` in [card-api.openapi.yaml](../../../api/card-api.openapi.yaml) |
 | Events | `CardBlocked` in [card-events.asyncapi.yaml](../../../events/card-events.asyncapi.yaml) |
-| Decisions | [ADR-001](../../05-decisions/ADR-001-block-reason-as-attribute.md) |

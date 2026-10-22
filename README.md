@@ -97,10 +97,6 @@ card-management-sa-case/
 │   │       ├── SD-UC-02-temp-block.md
 │   │       ├── SD-UC-05-reissue-saga.md
 │   │       └── SD-UC-06-07-fraud.md
-│   └── 05-decisions/
-│       ├── ADR-001-block-reason-as-attribute.md
-│       ├── ADR-002-reissue-as-new-entity.md
-│       └── ADR-003-reissue-saga-orchestration.md
 ├── api/
 │   └── card-api.openapi.yaml         ← REST API for the mobile app
 ├── events/
@@ -119,11 +115,10 @@ card-management-sa-case/
 | Non-functional requirements | `nfr.md` |
 | State modeling | `card-lifecycle.md` |
 | Architecture and integrations (C4, sequence diagrams) | `04-architecture/` |
-| Distributed transactions (saga, compensations, idempotency) | `SD-UC-05-reissue-saga.md`, `ADR-003` |
+| Distributed transactions (saga, compensations, idempotency) | `SD-UC-05-reissue-saga.md` |
 | REST API design (OpenAPI) | `api/card-api.openapi.yaml` |
 | Asynchronous messaging (AsyncAPI, Kafka) | `events/card-events.asyncapi.yaml` |
 | Data modeling and SQL (PostgreSQL) | `db/` |
-| Architecture decision records | `05-decisions/` |
 
 **Notations and tools:** UML (use case, state, sequence), C4, Mermaid, PlantUML, OpenAPI 3.0, AsyncAPI 2.6, Gherkin, PostgreSQL.
 
