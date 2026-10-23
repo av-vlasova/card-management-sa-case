@@ -1,0 +1,670 @@
+asyncapi: 2.6.0
+id: thebank:card-management:events
+info:
+  title: Card Management Events
+  version: 1.0.0
+  description: |
+    Kafka events consumed and published by the Card Service of The Bank card
+    management system.
+
+    Part of the [card management case study](../README.md). Every message
+    references the use cases that produce or consume it.
+
+    ## How to read `publish` and `subscribe`
+
+    This document describes the **Card Service**. In AsyncAPI 2.x the
+    operations are named from the point of view of other applications:
+
+    - `publish` — other applications publish to this channel and the Card
+      Service **consumes** the messages;
+    - `subscribe` — the Card Service **produces** messages that other
+      applications can subscribe to.
+
+    ## Conventions
+
+    - **Delivery guarantee.** At least once. Every consumer must be idempotent
+      and deduplicate by `eventId` (BR-06-4).
+    - **Ordering.** The message key is `cardId` for card events, so all events
+      of one card land in one partition and are consumed in order.
+    - **Publishing.** The Card Service publishes through a transactional
+      outbox: an event is written in the same database transaction as the state
+      change and relayed to Kafka afterwards.
+    - **Headers.** Every message carries the common headers defined in
+      `MessageHeaders`.
+    - **Personal data.** Card numbers are never sent in full. Only `maskedPan`
+      may appear in events.
+    - **Versioning.** The major version is part of the topic name (`.v1`).
+      Adding optional fields is a compatible change; anything else requires a
+      new topic version.
+
+defaultContentType: application/json
+
+servers:
+  production:
+    url: kafka.thebank.example:9093
+    protocol: kafka-secure
+    description: Fictional production Kafka cluster
+    security:
+      - mtls: []
+
+channels:
+  antifraud.suspicious-transactions.v1:
+    description: |
+      Suspicious transactions detected by the anti-fraud system.
+      Owned by the anti-fraud team.
+    publish:
+      operationId: consumeSuspiciousTransaction
+      summary: The Card Service consumes suspicious transaction events
+      description: |
+        **UC-06.** On every valid event the Card Service blocks the card
+        (`ACTIVE` → `FRAUD_BLOCKED`) or adds the transaction to the open fraud
+        case. Malformed events and events for unknown cards go to the
+        dead-letter topic `antifraud.suspicious-transactions.v1.dlq`.
+      bindings:
+        kafka:
+          groupId:
+            type: string
+            enum: [card-service]
+          bindingVersion: 0.4.0
+      message:
+        $ref: '#/components/messages/SuspiciousTransactionDetected'
+
+  card.status-events.v1:
+    description: Card status changes. Key is `cardId`.
+    bindings:
+      kafka:
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          retention.ms: 604800000
+        bindingVersion: 0.4.0
+    subscribe:
+      operationId: publishCardStatusEvent
+      summary: The Card Service publishes card status changes
+      description: |
+        Consumed by the Notification Service (push and SMS) and by any service
+        that needs to know whether a card can be used.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/CardBlocked'
+          - $ref: '#/components/messages/CardUnblocked'
+
+  card.reissue-events.v1:
+    description: Progress of card reissue. Key is `oldCardId`.
+    bindings:
+      kafka:
+        partitions: 6
+        replicas: 3
+        bindingVersion: 0.4.0
+    subscribe:
+      operationId: publishReissueEvent
+      summary: The Card Service publishes reissue events
+      description: |
+        **UC-05.** Consumed by the Notification Service and by services that
+        keep card references, for example recurring payments (out of scope),
+        which move to the new card on `CardReissued`.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/CardReissueRequested'
+          - $ref: '#/components/messages/CardReissued'
+          - $ref: '#/components/messages/CardReissueFailed'
+
+  antifraud.fraud-case-resolutions.v1:
+    description: |
+      Customer answers to fraud cases. Feedback for the anti-fraud system.
+      Key is `cardId`.
+    subscribe:
+      operationId: publishFraudCaseResolved
+      summary: The Card Service publishes fraud case resolutions
+      description: |
+        **UC-07, BR-07-5.** Published for every resolution, whatever the
+        answer, so that the anti-fraud system can measure false positives.
+      message:
+        $ref: '#/components/messages/FraudCaseResolved'
+
+components:
+  securitySchemes:
+    mtls:
+      type: X509
+      description: Services authenticate to Kafka with client certificates.
+
+  messageTraits:
+    CommonHeaders:
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+
+  messages:
+    SuspiciousTransactionDetected:
+      name: SuspiciousTransactionDetected
+      title: Suspicious transaction detected
+      summary: The anti-fraud system flagged a card transaction as possibly not made by the cardholder.
+      description: 'Produced by: Anti-Fraud System. Consumed by: Card Service (UC-06).'
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: cardId
+          bindingVersion: 0.4.0
+      payload:
+        $ref: '#/components/schemas/SuspiciousTransactionDetectedPayload'
+      examples:
+        - name: onlinePurchase
+          headers:
+            eventId: 9c1e7b42-0d5a-4f3e-8b61-2a7c9e0f4d18
+            eventType: SuspiciousTransactionDetected
+            occurredAt: '2026-10-22T14:58:21Z'
+            producer: anti-fraud-system
+            schemaVersion: 1
+          payload:
+            cardId: 8d1a6f30-4b2e-4c7a-a9d5-2e6f1c0b7d92
+            transaction:
+              id: 61d3b8e2-7f0a-4c95-8e14-3a9b2c6d0f71
+              amount: '18990.00'
+              currency: RUB
+              merchant: ELECTRO-WORLD ONLINE
+              mcc: '5732'
+              country: RU
+              channel: E_COMMERCE
+              occurredAt: '2026-10-22T14:58:20Z'
+            riskScore: 0.93
+            ruleIds: [VELOCITY_NEW_DEVICE, HIGH_AMOUNT_ECOM]
+
+    CardBlocked:
+      name: CardBlocked
+      title: Card blocked
+      summary: A card moved to a blocked status.
+      description: |
+        Produced by: Card Service.
+
+        | Transition | Use case | `newStatus` | `blockReason` |
+        |---|---|---|---|
+        | T1 | UC-02 | `TEMP_BLOCKED` | `CUSTOMER_REQUEST` |
+        | T3 | UC-06 | `FRAUD_BLOCKED` | `FRAUD_SUSPECTED` |
+        | T5 | UC-07 → UC-04 | `PERM_BLOCKED` | `FRAUD_CONFIRMED` |
+        | T6, T7 | UC-04 | `PERM_BLOCKED` | `LOST`, `STOLEN` |
+
+        Not published for idempotent repeats that do not change the status.
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: cardId
+          bindingVersion: 0.4.0
+      payload:
+        $ref: '#/components/schemas/CardBlockedPayload'
+      examples:
+        - name: fraudBlock
+          summary: UC-06, anti-fraud block
+          headers:
+            eventId: 4e8a2d71-6b3c-4f09-a5e2-1d7c0b9f3a64
+            eventType: CardBlocked
+            occurredAt: '2026-10-22T14:58:22Z'
+            producer: card-service
+            correlationId: 9c1e7b42-0d5a-4f3e-8b61-2a7c9e0f4d18
+            schemaVersion: 1
+          payload:
+            cardId: 8d1a6f30-4b2e-4c7a-a9d5-2e6f1c0b7d92
+            customerId: 2b7f0c93-1e4d-4a86-9c5b-7f3e8d1a0c26
+            maskedPan: •••• 0238
+            transitionId: T3
+            previousStatus: ACTIVE
+            newStatus: FRAUD_BLOCKED
+            blockReason: FRAUD_SUSPECTED
+            initiator:
+              type: ANTI_FRAUD
+            fraudCaseId: a71c4e09-2d5b-4c8e-b3f6-90e1d2c4a8b5
+            fraudSummary:
+              amount: '18990.00'
+              currency: RUB
+              merchant: ELECTRO-WORLD ONLINE
+        - name: temporaryBlock
+          summary: UC-02, customer blocks the card
+          headers:
+            eventId: 1f6b3a08-9d2e-4c75-b8a4-0e5d7c2f9b13
+            eventType: CardBlocked
+            occurredAt: '2026-10-22T15:04:12Z'
+            producer: card-service
+            correlationId: 5d0e6a3b-1f8c-4b27-9e4d-7a2c1b0f9e63
+            schemaVersion: 1
+          payload:
+            cardId: 3f2b8c1e-9a4d-4e6b-8f21-5c7d0a9e1b44
+            customerId: 2b7f0c93-1e4d-4a86-9c5b-7f3e8d1a0c26
+            maskedPan: •••• 4417
+            transitionId: T1
+            previousStatus: ACTIVE
+            newStatus: TEMP_BLOCKED
+            blockReason: CUSTOMER_REQUEST
+            initiator:
+              type: CUSTOMER
+              channel: MOBILE_APP
+
+    CardUnblocked:
+      name: CardUnblocked
+      title: Card unblocked
+      summary: A blocked card became active again.
+      description: |
+        Produced by: Card Service.
+
+        | Transition | Use case | `previousStatus` |
+        |---|---|---|
+        | T2 | UC-03 | `TEMP_BLOCKED` |
+        | T4 | UC-07 ("It was me") | `FRAUD_BLOCKED` |
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: cardId
+          bindingVersion: 0.4.0
+      payload:
+        $ref: '#/components/schemas/CardUnblockedPayload'
+      examples:
+        - name: unblockAfterFraudCase
+          headers:
+            eventId: 7a0c5e19-3b8d-4f62-9e1a-6c4d2b0f8e75
+            eventType: CardUnblocked
+            occurredAt: '2026-10-22T15:20:05Z'
+            producer: card-service
+            schemaVersion: 1
+          payload:
+            cardId: 8d1a6f30-4b2e-4c7a-a9d5-2e6f1c0b7d92
+            customerId: 2b7f0c93-1e4d-4a86-9c5b-7f3e8d1a0c26
+            maskedPan: •••• 0238
+            transitionId: T4
+            previousStatus: FRAUD_BLOCKED
+            newStatus: ACTIVE
+            initiator:
+              type: CUSTOMER
+              channel: MOBILE_APP
+            stepUpMethod: BIOMETRICS
+
+    CardReissueRequested:
+      name: CardReissueRequested
+      title: Card reissue requested
+      summary: The customer ordered a replacement card; the reissue saga is starting.
+      description: 'Produced by: Card Service (UC-05, step 8).'
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      payload:
+        $ref: '#/components/schemas/CardReissueRequestedPayload'
+
+    CardReissued:
+      name: CardReissued
+      title: Card reissued
+      summary: |
+        The replacement card is issued, its delivery is ordered and the old card
+        is closed (transition T8).
+      description: 'Produced by: Card Service (UC-05, saga step S4).'
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      payload:
+        $ref: '#/components/schemas/CardReissuedPayload'
+      examples:
+        - name: courierDelivery
+          headers:
+            eventId: 2d9f6b80-5e1a-4c37-8a0b-3f7e9c1d5a42
+            eventType: CardReissued
+            occurredAt: '2026-10-22T15:11:47Z'
+            producer: card-service
+            correlationId: 0b9e5d2c-3c8a-4f71-9a55-6d1f0e4b2c77
+            schemaVersion: 1
+          payload:
+            reissueRequestId: 0b9e5d2c-3c8a-4f71-9a55-6d1f0e4b2c77
+            customerId: 2b7f0c93-1e4d-4a86-9c5b-7f3e8d1a0c26
+            oldCardId: 3f2b8c1e-9a4d-4e6b-8f21-5c7d0a9e1b44
+            oldMaskedPan: •••• 4417
+            newCardId: e2c9f4a7-5b1d-4e83-9c6a-0d7b3f2e1a58
+            newMaskedPan: •••• 9051
+            delivery:
+              method: COURIER
+              estimatedDate: '2026-10-27'
+
+    CardReissueFailed:
+      name: CardReissueFailed
+      title: Card reissue failed
+      summary: The reissue saga failed before the pivot step; completed steps have been compensated.
+      description: |
+        Produced by: Card Service (UC-05, ext. 10a and 11a).
+        Not published when the saga goes to `MANUAL_HANDLING`: in that case the
+        support team handles the request and the outcome is published later.
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      payload:
+        $ref: '#/components/schemas/CardReissueFailedPayload'
+
+    FraudCaseResolved:
+      name: FraudCaseResolved
+      title: Fraud case resolved
+      summary: The customer answered whether they made the suspicious transactions.
+      description: 'Produced by: Card Service (UC-07). Consumed by: Anti-Fraud System.'
+      traits:
+        - $ref: '#/components/messageTraits/CommonHeaders'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: cardId
+          bindingVersion: 0.4.0
+      payload:
+        $ref: '#/components/schemas/FraudCaseResolvedPayload'
+      examples:
+        - name: falsePositive
+          headers:
+            eventId: 6b3e0a92-8c4f-4d17-b5e6-2a9d1c7f0e38
+            eventType: FraudCaseResolved
+            occurredAt: '2026-10-22T15:20:05Z'
+            producer: card-service
+            schemaVersion: 1
+          payload:
+            fraudCaseId: a71c4e09-2d5b-4c8e-b3f6-90e1d2c4a8b5
+            cardId: 8d1a6f30-4b2e-4c7a-a9d5-2e6f1c0b7d92
+            resolution: CONFIRMED_BY_CUSTOMER
+            channel: MOBILE_APP
+            transactionIds: [61d3b8e2-7f0a-4c95-8e14-3a9b2c6d0f71]
+            openedAt: '2026-10-22T14:58:22Z'
+            resolvedAt: '2026-10-22T15:20:05Z'
+
+  schemas:
+    MessageHeaders:
+      type: object
+      required: [eventId, eventType, occurredAt, producer, schemaVersion]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique event ID. Consumers deduplicate by it.
+        eventType:
+          type: string
+          description: Message name, e.g. `CardBlocked`
+        occurredAt:
+          type: string
+          format: date-time
+          description: When the state change happened (not when the event was relayed)
+        producer:
+          type: string
+          example: card-service
+        correlationId:
+          type: string
+          description: |
+            ID of the request or event that caused this event: the idempotency
+            key of the API request, the `eventId` of the anti-fraud event or the
+            reissue request ID.
+        schemaVersion:
+          type: integer
+          minimum: 1
+
+    CardStatus:
+      type: string
+      enum: [ACTIVE, TEMP_BLOCKED, FRAUD_BLOCKED, PERM_BLOCKED, CLOSED]
+
+    MaskedPan:
+      type: string
+      pattern: '^•••• \d{4}$'
+      example: •••• 4417
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount as a string to avoid rounding errors
+          example: '18990.00'
+        currency:
+          type: string
+          description: ISO 4217 code
+          example: RUB
+
+    Initiator:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [CUSTOMER, ANTI_FRAUD, SYSTEM]
+        channel:
+          type: string
+          description: Set when `type` is `CUSTOMER`
+          enum: [MOBILE_APP, CONTACT_CENTER]
+
+    SuspiciousTransactionDetectedPayload:
+      type: object
+      required: [cardId, transaction, riskScore]
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        transaction:
+          type: object
+          required: [id, amount, currency, merchant, occurredAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            amount:
+              type: string
+              example: '18990.00'
+            currency:
+              type: string
+              example: RUB
+            merchant:
+              type: string
+            mcc:
+              type: string
+              description: Merchant category code
+              pattern: '^\d{4}$'
+            country:
+              type: string
+              description: ISO 3166-1 alpha-2 code
+            channel:
+              type: string
+              enum: [POS, E_COMMERCE, ATM]
+            occurredAt:
+              type: string
+              format: date-time
+        riskScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Informational only. The Card Service blocks on every valid event (BR-06-1).
+        ruleIds:
+          type: array
+          description: Anti-fraud rules that fired
+          items:
+            type: string
+
+    CardBlockedPayload:
+      type: object
+      required: [cardId, customerId, maskedPan, transitionId, previousStatus, newStatus, blockReason, initiator]
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        maskedPan:
+          $ref: '#/components/schemas/MaskedPan'
+        transitionId:
+          type: string
+          enum: [T1, T3, T5, T6, T7]
+        previousStatus:
+          type: string
+          enum: [ACTIVE, TEMP_BLOCKED, FRAUD_BLOCKED]
+        newStatus:
+          type: string
+          enum: [TEMP_BLOCKED, FRAUD_BLOCKED, PERM_BLOCKED]
+        blockReason:
+          type: string
+          enum: [CUSTOMER_REQUEST, FRAUD_SUSPECTED, LOST, STOLEN, FRAUD_CONFIRMED]
+        initiator:
+          $ref: '#/components/schemas/Initiator'
+        fraudCaseId:
+          type: string
+          format: uuid
+          description: Set for `FRAUD_BLOCKED` and `FRAUD_CONFIRMED`
+        fraudSummary:
+          type: object
+          description: |
+            Set for `FRAUD_BLOCKED`. The latest suspicious transaction, so the
+            Notification Service can describe it without calling the Card Service.
+          properties:
+            amount:
+              type: string
+            currency:
+              type: string
+            merchant:
+              type: string
+
+    CardUnblockedPayload:
+      type: object
+      required: [cardId, customerId, maskedPan, transitionId, previousStatus, newStatus, initiator, stepUpMethod]
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        maskedPan:
+          $ref: '#/components/schemas/MaskedPan'
+        transitionId:
+          type: string
+          enum: [T2, T4]
+        previousStatus:
+          type: string
+          enum: [TEMP_BLOCKED, FRAUD_BLOCKED]
+        newStatus:
+          type: string
+          enum: [ACTIVE]
+        initiator:
+          $ref: '#/components/schemas/Initiator'
+        stepUpMethod:
+          type: string
+          description: How the customer confirmed the action (BR-03-1, BR-07-1)
+          enum: [BIOMETRICS, OTP]
+
+    DeliveryMethod:
+      type: string
+      enum: [COURIER, BRANCH]
+
+    CardReissueRequestedPayload:
+      type: object
+      required: [reissueRequestId, customerId, oldCardId, delivery]
+      properties:
+        reissueRequestId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        oldCardId:
+          type: string
+          format: uuid
+        delivery:
+          type: object
+          required: [method]
+          properties:
+            method:
+              $ref: '#/components/schemas/DeliveryMethod'
+            estimatedDate:
+              type: string
+              format: date
+
+    CardReissuedPayload:
+      type: object
+      required: [reissueRequestId, customerId, oldCardId, oldMaskedPan, newCardId, newMaskedPan, delivery]
+      properties:
+        reissueRequestId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        oldCardId:
+          type: string
+          format: uuid
+          description: Now `CLOSED`
+        oldMaskedPan:
+          $ref: '#/components/schemas/MaskedPan'
+        newCardId:
+          type: string
+          format: uuid
+        newMaskedPan:
+          $ref: '#/components/schemas/MaskedPan'
+        delivery:
+          type: object
+          required: [method, estimatedDate]
+          properties:
+            method:
+              $ref: '#/components/schemas/DeliveryMethod'
+            estimatedDate:
+              type: string
+              format: date
+
+    CardReissueFailedPayload:
+      type: object
+      required: [reissueRequestId, customerId, oldCardId, failedStep, reason]
+      properties:
+        reissueRequestId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        oldCardId:
+          type: string
+          format: uuid
+          description: Still `PERM_BLOCKED`; the customer can try again
+        failedStep:
+          type: string
+          enum: [S1, S2]
+        reason:
+          type: string
+          enum: [PROCESSING_UNAVAILABLE, DELIVERY_REJECTED, ADDRESS_NOT_SERVED, BRANCH_UNAVAILABLE]
+        compensatedSteps:
+          type: array
+          description: Saga steps that were compensated, e.g. `[S1]`
+          items:
+            type: string
+            enum: [S1]
+
+    FraudCaseResolvedPayload:
+      type: object
+      required: [fraudCaseId, cardId, resolution, channel, transactionIds, openedAt, resolvedAt]
+      properties:
+        fraudCaseId:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        resolution:
+          type: string
+          description: '`CONFIRMED_BY_CUSTOMER` = false positive, `REJECTED_BY_CUSTOMER` = confirmed fraud'
+          enum: [CONFIRMED_BY_CUSTOMER, REJECTED_BY_CUSTOMER]
+        channel:
+          type: string
+          enum: [MOBILE_APP, CONTACT_CENTER]
+        transactionIds:
+          type: array
+          minItems: 1
+          description: All transactions in the case at the moment of resolution
+          items:
+            type: string
+            format: uuid
+        openedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time

@@ -28,8 +28,6 @@ info:
     - **Asynchronous operations.** When the processing center does not respond
       in time, state-changing card operations return `202 Accepted` with an
       operation to poll at `GET /operations/{operationId}`.
-  contact:
-    name: Alina Vlasova
 
 servers:
   - url: https://api.thebank.example/mobile/v1
