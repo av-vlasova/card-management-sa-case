@@ -10,7 +10,7 @@
 | **Supporting actors** | Card processing center, Card production and delivery service, Notification service |
 | **State transition** | T8: `PERM_BLOCKED` → `CLOSED` for the old card ([card lifecycle](../../03-state-model/card-lifecycle.md)) |
 
-Related: [Glossary](../../01-context/glossary.md) · [UC-04](UC-04-perm-block.md) · [Sequence diagram SD-UC-05](../../04-architecture/sequences/SD-UC-05-reissue-saga.md) · [API](../../../api/card-api.openapi.yaml) · [Events](../../../events/card-events.asyncapi.yaml)
+Related: [Glossary](../../01-context/glossary.md) · [UC-04](UC-04-permanent-block.md) · [Sequence diagram SD-UC-05](../../04-architecture/sequences/SD-UC-05-reissue-saga.md) · [API](../../../api/card-api.openapi.yaml) · [Events](../../../events/card-events.asyncapi.yaml)
 
 ## Brief Description
 
@@ -34,7 +34,7 @@ The customer orders a replacement for a permanently blocked card and chooses how
 
 ## Trigger
 
-The customer taps **Reissue** on the card screen, or on the confirmation screen right after a permanent block ([UC-04](UC-04-perm-block.md), [UC-07](UC-07-fraud-confirm.md)).
+The customer taps **Reissue** on the card screen, or on the confirmation screen right after a permanent block ([UC-04](UC-04-permanent-block.md), [UC-07](UC-07-fraud-confirm.md)).
 
 ## Minimal Guarantees
 
@@ -102,7 +102,7 @@ S3 is the **pivot step**: before it, a failure is handled by compensating the co
 - 6a1. The app retries with the same idempotency key. If the first request was already processed, the system returns the existing reissue request. The use case continues at step 9.
 
 **7a. The card is `ACTIVE` or `TEMP_BLOCKED`:**
-- 7a1. The system rejects the request: only a permanently blocked card can be reissued. The app offers to block it permanently first ([UC-04](UC-04-perm-block.md)). The use case ends.
+- 7a1. The system rejects the request: only a permanently blocked card can be reissued. The app offers to block it permanently first ([UC-04](UC-04-permanent-block.md)). The use case ends.
 
 **7b. The card is `FRAUD_BLOCKED`:**
 - 7b1. The system rejects the request. The app redirects the customer to [UC-07](UC-07-fraud-confirm.md). The use case ends.

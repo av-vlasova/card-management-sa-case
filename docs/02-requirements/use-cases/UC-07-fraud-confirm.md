@@ -10,7 +10,7 @@
 | **Supporting actors** | Card processing center, Anti-fraud system, Notification service |
 | **State transitions** | T4: `FRAUD_BLOCKED` → `ACTIVE` ("It was me"), T5: `FRAUD_BLOCKED` → `PERM_BLOCKED` ("Not me") ([card lifecycle](../../03-state-model/card-lifecycle.md)) |
 
-Related: [Glossary](../../01-context/glossary.md) · [UC-06](UC-06-fraud-block.md) · [UC-04](UC-04-perm-block.md) · [UC-05](UC-05-reissue.md) · [Sequence diagram SD-UC-06-07](../../04-architecture/sequences/SD-UC-06-07-fraud.md) · [API](../../../api/card-api.openapi.yaml) · [Events](../../../events/card-events.asyncapi.yaml)
+Related: [Glossary](../../01-context/glossary.md) · [UC-06](UC-06-fraud-block.md) · [UC-04](UC-04-permanent-block.md) · [UC-05](UC-05-reissue.md) · [Sequence diagram SD-UC-06-07](../../04-architecture/sequences/SD-UC-06-07-fraud.md) · [API](../../../api/card-api.openapi.yaml) · [Events](../../../events/card-events.asyncapi.yaml)
 
 ## Brief Description
 
@@ -88,7 +88,7 @@ The main scenario covers the "It was me" answer; the "Not me" answer is describe
 - 4a1. The app warns that the card will be blocked permanently and will have to be reissued, and asks for confirmation.
 - 4a2. The customer confirms. No step-up authentication is required (see BR-07-2).
 - 4a3. The app sends the resolution `REJECTED` with a new idempotency key.
-- 4a4. The system checks that the fraud case is still open and invokes [UC-04](UC-04-perm-block.md) from step 6 with `block_reason = FRAUD_CONFIRMED` (transition T5).
+- 4a4. The system checks that the fraud case is still open and invokes [UC-04](UC-04-permanent-block.md) from step 6 with `block_reason = FRAUD_CONFIRMED` (transition T5).
 - 4a5. The system closes the fraud case with resolution `REJECTED_BY_CUSTOMER` and publishes a `FraudCaseResolved` event.
 - 4a6. The app shows the card as permanently blocked and offers to reissue it ([UC-05](UC-05-reissue.md)). It also informs the customer that disputing the transaction is handled by the contact center (out of scope). The use case ends.
 
@@ -157,4 +157,4 @@ Detailed in [nfr.md](../nfr.md). Key ones for this use case:
 | API | `GET /fraud-cases/{caseId}`, `POST /fraud-cases/{caseId}/resolution` in [card-api.openapi.yaml](../../../api/card-api.openapi.yaml) |
 | Events | Published: `CardUnblocked`, `CardBlocked`, `FraudCaseResolved` in [card-events.asyncapi.yaml](../../../events/card-events.asyncapi.yaml) |
 | Sequence diagram | [SD-UC-06-07-fraud.md](../../04-architecture/sequences/SD-UC-06-07-fraud.md) |
-| Related use cases | [UC-06](UC-06-fraud-block.md) (precedes), [UC-04](UC-04-perm-block.md) (invoked), [UC-05](UC-05-reissue.md) (offered) |
+| Related use cases | [UC-06](UC-06-fraud-block.md) (precedes), [UC-04](UC-04-permanent-block.md) (invoked), [UC-05](UC-05-reissue.md) (offered) |

@@ -17,7 +17,7 @@ Terms, statuses and abbreviations used across this case. All documents refer to 
 | **Card** | A payment card issued by The Bank and linked to a customer account. Identified internally by `card_id` shown to the customer only in masked form. |
 | **Temporary block** | A reversible block initiated by the customer. Transactions are declined until the customer unblocks the card. See [UC-02](../02-requirements/use-cases/UC-02-temp-block.md). |
 | **Unblock** | Restoring a temporarily blocked card to the active status. Requires additional confirmation. See [UC-03](../02-requirements/use-cases/UC-03-unblock.md). |
-| **Permanent block** | An irreversible block for a lost, stolen or compromised card. The card can only be replaced, never reactivated. See [UC-04](../02-requirements/use-cases/UC-04-perm-block.md). |
+| **Permanent block** | An irreversible block for a lost, stolen or compromised card. The card can only be replaced, never reactivated. See [UC-04](../02-requirements/use-cases/UC-04-permanent-block.md). |
 | **Anti-fraud block** | A block applied automatically when the anti-fraud system reports a suspicious transaction. Can only be lifted by the customer's response to that transaction. See [UC-06](../02-requirements/use-cases/UC-06-fraud-block.md). |
 | **Suspicious transaction** | A transaction flagged by the anti-fraud system as possibly not made by the cardholder. |
 | **Transaction confirmation** | The customer's answer to a suspicious transaction: "It was me" (the block is lifted) or "It was not me" (the card is permanently blocked). See [UC-07](../02-requirements/use-cases/UC-07-fraud-confirm.md). |

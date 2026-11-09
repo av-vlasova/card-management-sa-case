@@ -28,7 +28,7 @@ A customer who has lost their card or has spotted a suspicious transaction needs
 | [UC-01](docs/02-requirements/use-cases/UC-01-card-list.md) | View cards | Customer | Brief |
 | [UC-02](docs/02-requirements/use-cases/UC-02-temp-block.md) | Temporarily block a card | Customer | **Fully dressed** |
 | [UC-03](docs/02-requirements/use-cases/UC-03-unblock.md) | Unblock a card | Customer | Brief |
-| [UC-04](docs/02-requirements/use-cases/UC-04-perm-block.md) | Permanently block a lost or stolen card | Customer | Brief |
+| [UC-04](docs/02-requirements/use-cases/UC-04-permanent-block.md) | Permanently block a lost or stolen card | Customer | Brief |
 | [UC-05](docs/02-requirements/use-cases/UC-05-reissue.md) | Reissue a card | Customer | **Fully dressed** |
 | [UC-06](docs/02-requirements/use-cases/UC-06-fraud-block.md) | Block a card on an anti-fraud alert | Anti-fraud system | Brief |
 | [UC-07](docs/02-requirements/use-cases/UC-07-fraud-confirm.md) | Confirm or reject a suspicious transaction | Customer | **Fully dressed** |
@@ -85,7 +85,7 @@ card-management-sa-case/
 │   │       ├── UC-01-card-list.md
 │   │       ├── UC-02-temp-block.md
 │   │       ├── UC-03-unblock.md
-│   │       ├── UC-04-perm-block.md
+│   │       ├── UC-04-permanent-block.md
 │   │       ├── UC-05-reissue.md
 │   │       ├── UC-06-fraud-block.md
 │   │       └── UC-07-fraud-confirm.md

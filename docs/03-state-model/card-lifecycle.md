@@ -2,7 +2,7 @@
 
 This document defines the card state model: statuses, allowed transitions, guard conditions and how the system handles requests that do not match the current status.
 
-Related use cases: [UC-02](../02-requirements/use-cases/UC-02-temp-block.md), [UC-03](../02-requirements/use-cases/UC-03-unblock.md), [UC-04](../02-requirements/use-cases/UC-04-perm-block.md), [UC-05](../02-requirements/use-cases/UC-05-reissue.md), [UC-06](../02-requirements/use-cases/UC-06-fraud-block.md), [UC-07](../02-requirements/use-cases/UC-07-fraud-confirm.md)
+Related use cases: [UC-02](../02-requirements/use-cases/UC-02-temp-block.md), [UC-03](../02-requirements/use-cases/UC-03-unblock.md), [UC-04](../02-requirements/use-cases/UC-04-permanent-block.md), [UC-05](../02-requirements/use-cases/UC-05-reissue.md), [UC-06](../02-requirements/use-cases/UC-06-fraud-block.md), [UC-07](../02-requirements/use-cases/UC-07-fraud-confirm.md)
 
 ## State Diagram
 
