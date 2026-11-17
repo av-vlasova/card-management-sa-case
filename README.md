@@ -124,4 +124,4 @@ card-management-sa-case/
 
 ## About me
 
-**Alina Vlasova**, System Analyst <br> Telegram: `@drunkenwhal3r` · Email: `avzhorina@gmail.com` · [CV](...)
+**Alina Vlasova**, System Analyst <br> Email: `avzhorina@gmail.com` · [LinkedIn](https://www.linkedin.com/in/alina-vlasova-632822446)
